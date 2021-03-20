@@ -1,5 +1,6 @@
 from selenium import webdriver
 from selenium.common.exceptions import StaleElementReferenceException
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -12,7 +13,14 @@ from datetime import date
 import time
 import gspread
 from pandas import DataFrame
-
+from zipfile import ZipFile
+import shutil
+import os
+from os.path import basename
+import pathlib
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
+import webbrowser
 
 
 class InexPrometheus:
@@ -23,11 +31,64 @@ class InexPrometheus:
         self.client = gspread.authorize(self.creds)
         self.query_url = "http://www.eprocurement.gov.gr/kimds2/unprotected/searchPayments.htm?execution=e3s1"
         chrome_options = webdriver.ChromeOptions()
-        chrome_options.add_argument("--headless")
+        chrome_options.add_experimental_option('prefs', {
+            "download.default_directory": "C:\\Users\\jimtsa\\Desktop\\inex_diavgeia", #Change default directory for downloads
+            "download.prompt_for_download": False, #To auto download the file
+            "download.directory_upgrade": True,
+            "plugins.always_open_pdf_externally": True #It will not show PDF directly in chrome
+        })
+        # chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument ("--disable-infobars")
+        chrome_options.add_argument ("--disable-notifications")
         self.driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
         self.today = date.today().strftime("%d/%m/%Y")
+        # self.today = "19/03/2021"
         self.afm = "094356041"
         self.data = []
+
+
+
+    def upload_zip_files(self):
+
+        gauth = GoogleAuth()
+        gauth.LocalWebserverAuth()
+        gdrive = GoogleDrive(gauth)
+
+        for folderName, subfolders, filenames in os.walk('.'):
+            for filename in filenames:
+
+                if filename.endswith('.zip'):
+                    gfile = gdrive.CreateFile({'title': filename, "parents":  [{"id": "1inCj1Iiv22SpbLk8v1atFF7183HwEpGf"}]})
+                    gfile.SetContentFile(filename)
+                    gfile.Upload()
+
+    def zip_pdfs(self):
+
+        fn_mtime = {}
+        counter = 0
+
+        for folderName, subfolders, filenames in os.walk('.'):
+            for filename in filenames:
+                if filename.endswith('.pdf'):
+                    fname = pathlib.Path(filename)
+                    fn_mtime[filename] = fname.stat().st_mtime
+
+        sorted_fn_mtime = {k: v for k, v in sorted(fn_mtime.items(), key=lambda item: item[1])}
+
+        for filename, mtime in sorted_fn_mtime.items():
+
+            filepath = os.path.join(os.getcwd(), filename)
+            os.rename(filepath, os.path.join(os.getcwd(), date.today().strftime("%Y%m%d")+'_'+self.data[counter][1]+'.pdf'))
+            counter += 1
+
+        with ZipFile(date.today().strftime("%Y%m%d")+'.zip', 'w') as zip:
+            for folderName, subfolders, filenames in os.walk('.'):
+                for filename in filenames:
+                    if filename.endswith('.pdf'):
+                        filepath = os.path.join(folderName, filename)
+                        zip.write(filepath, basename(filepath))
 
     def get_query(self):
 
@@ -38,10 +99,14 @@ class InexPrometheus:
         self.driver.find_element_by_name("pageForm:j_id255").click()
 
         time.sleep(20)
-        # WebDriverWait(self.driver, 20).until(EC.presence_of_element_located((By.ID, 'pageForm:j_id44')))
+
+    def get_results_for_gs(self):
+
+        self.get_query()
 
         data = self.driver.page_source
         soup = bs4.BeautifulSoup(data, 'lxml')
+
         for node in soup.findAll('td', class_="rich-table-cell"):
             id = node.text.split("Στοιχεία Εντολής")[0].split('21PAY')[0].strip()
             pay = '21PAY'+node.text.split("Στοιχεία Εντολής")[0].split('21PAY')[1].strip()
@@ -49,8 +114,24 @@ class InexPrometheus:
             price = node.text.split("ΦΠΑ")[1].split("Φορέας")[0].strip()
             dt = node.text.split("Αναρτήθηκε")[1].split("Τελευταία")[0].strip()
             self.data.append([id, pay, foreas, price, dt])
-
+            print(id, pay, foreas, price, dt)
         return self.data
+
+    def get_pdf(self):
+
+        self.get_query()
+
+        WebDriverWait(self.driver, 20).until(EC.presence_of_element_located((By.ID, 'pageForm:j_id44')))
+
+        for i in range(int(len(self.get_results_for_gs()) / 2)):
+            time.sleep(20)
+            self.driver.find_element_by_id('pageForm:j_id290:'+str(i)+':j_id306').click()
+            time.sleep(20)
+            self.driver.find_element_by_link_text('Κατεβάστε το αρχείο').click()
+            self.driver.back()
+
+        self.driver.close()
+        self.zip_pdfs()
 
     def write_to_gs(self):
 
@@ -68,7 +149,7 @@ class InexPrometheus:
         history_df = history_df[["id",	"pay", "foreas", "price", "dt"]]
 
         from_current_to_history = history_df.append(today_df)
-        from_current_to_history = from_current_to_history.sort_values('dt').drop_duplicates('id')
+        from_current_to_history = from_current_to_history.sort_values('dt').drop_duplicates('pay')
         from_current_to_history = from_current_to_history.sort_values(by=['dt'], ascending=False)
 
         prom_tracker_current.delete_rows(2, len(today_df) + 1)

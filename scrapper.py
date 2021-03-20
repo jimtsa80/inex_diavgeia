@@ -73,9 +73,9 @@ class InexScrapper:
         data = self.get_query()
         data['submissionTimestamp'] = pd.to_datetime(data['submissionTimestamp'])
         entries = data[data['submissionTimestamp'].dt.date.astype(str) == self.query_date]
-        # print(self.query_date)
-        # print(data['submissionTimestamp'].dt.date.astype(str))
-        # print(entries)
+        print(self.query_date)
+        print(data['submissionTimestamp'].dt.date.astype(str))
+        print(entries)
         if not entries.empty:
             entries.to_excel('{}_{}.xlsx'.format(self.query, self.today), sheet_name='sheet1', index=False)
         else:
@@ -128,28 +128,40 @@ class InexScrapper:
 
 
 if __name__ == '__main__':
-
-    # today = date.today().strftime("%Y-%d-%m")
-    today = date.today().strftime("%Y-%m-%d")
-    # today = date.today().strftime("%d/%m/%Y")
-    nothing_found = 0
-    keywords = ["094356041", "inex", "ινεξ"]
-
-    for kw in keywords:
-        inexScrapper = InexScrapper(kw, today)
-        nothing_found += inexScrapper.counter
-
-    if nothing_found == len(keywords):
-        print("Nothing found today!")
-        inexScrapper.clean_folder()
-    else:
-        inexScrapper.write_to_gs()
-        inexScrapper.clean_folder()
+    # # today = "2021-02-15"
+    # # if date.today().month % 2 == 0:
+    # today = date.today().strftime("%Y-%m-%d")
+    # # else:
+    # #     today = date.today().strftime("%Y-%d-%m")
+    # # today = date.today().strftime("%Y-%m-%d")
+    # # today = date.today().strftime("%d/%m/%Y")
+    #
+    # nothing_found = 0
+    # keywords = ["094356041", "inex", "ινεξ"]
+    #
+    # for kw in keywords:
+    #     inexScrapper = InexScrapper(kw, today)
+    #     nothing_found += inexScrapper.counter
+    #
+    # if nothing_found == len(keywords):
+    #     for kw in keywords:
+    #         today = date.today().strftime("%Y-%d-%m")
+    #         inexScrapper = InexScrapper(kw, today)
+    #         nothing_found += inexScrapper.counter
+    #
+    # if nothing_found == len(keywords):
+    #     print("Nothing found today!")
+    #     inexScrapper.clean_folder()
+    # else:
+    #     inexScrapper.write_to_gs()
+    #     inexScrapper.clean_folder()
 
     promScrapper = InexPrometheus()
-    promScrapper.get_query()
-    promScrapper.write_to_gs()
+    # promScrapper.get_results_for_gs()
+    # promScrapper.write_to_gs()
+    # promScrapper.get_pdf()
+    promScrapper.upload_zip_files()
 
-    papScrapper = InexPap()
-    papScrapper.get_query()
-    papScrapper.write_to_gs()
+    # papScrapper = InexPap()
+    # papScrapper.get_query()
+    # papScrapper.write_to_gs()

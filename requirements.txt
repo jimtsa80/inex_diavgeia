@@ -1,6 +1,0 @@
-selenium
-webdriver_manager
-gspread_dataframe
-oauth2client
-gspread
-pandas

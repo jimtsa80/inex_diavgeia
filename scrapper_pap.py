@@ -23,7 +23,7 @@ class InexPap:
         chrome_options.add_argument("--headless")
         self.driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
         self.today = date.today().strftime("%d/%m/%Y")
-        self.old = "8/12/2020"
+        self.old = "1/1/2021"
         self.afm = "094356041"
         self.username = "ACCOUNTING@INEXMEDICAL.GR"
         self.data = []
