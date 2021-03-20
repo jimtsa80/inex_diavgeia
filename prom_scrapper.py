@@ -49,7 +49,6 @@ class InexPrometheus:
         self.data = []
 
 
-
     def upload_zip_files(self):
 
         gauth = GoogleAuth()
