@@ -30,24 +30,59 @@ class InexPrometheus:
         self.creds = ServiceAccountCredentials.from_json_keyfile_name('secret_key/client_secret.json', self.scope)
         self.client = gspread.authorize(self.creds)
         self.query_url = "http://www.eprocurement.gov.gr/kimds2/unprotected/searchPayments.htm?execution=e3s1"
+
+        # self.download_location = "C:\\Users\\jimtsa\\Desktop\\inex_diavgeia"
+        # chromedriver_location = 'C:\\Users\\jimtsa\\.wdm\\drivers\\chromedriver\\win32\\89.0.4389.23\\chromedriver.exe'
+
         chrome_options = webdriver.ChromeOptions()
+
         chrome_options.add_experimental_option('prefs', {
             "download.default_directory": "C:\\Users\\jimtsa\\Desktop\\inex_diavgeia", #Change default directory for downloads
             "download.prompt_for_download": False, #To auto download the file
             "download.directory_upgrade": True,
-            "plugins.always_open_pdf_externally": True #It will not show PDF directly in chrome
+            "plugins.always_open_pdf_externally": True#It will not show PDF directly in chrome
+            # "download_restrictions": 0,
+            # "prompt_for_download": False,
+            # "directory_upgrade": True,
+            # 'safebrowsing.enabled': False,
+            # 'safebrowsing.disable_download_protection': True,
+            # "safebrowsing_for_trusted_sources_enabled": False
         })
         # chrome_options.add_argument("--headless")
+        # chrome_options.add_argument('--window-size=1920,1080')
         chrome_options.add_argument("--no-sandbox")
+        # chrome_options.add_argument('--verbose')
+        chrome_options.add_argument("--incognito")
         chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument ("--disable-infobars")
-        chrome_options.add_argument ("--disable-notifications")
+        # chrome_options.add_argument("--disable-web-security")
+        # chrome_options.add_argument('--disable-gpu')
+        # chrome_options.add_argument('--disable-software-rasterizer')
         self.driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
+
+        # self.driver = webdriver.Chrome(chromedriver_location, options=chrome_options)
+        # self.enable_download_in_headless_chrome(self.driver, self.download_location)
         self.today = date.today().strftime("%d/%m/%Y")
-        # self.today = "19/03/2021"
+        # self.today = "04/01/2022"
         self.afm = "094356041"
         self.data = []
 
+
+    def enable_download_in_headless_chrome(self, driver, download_dir):
+        """
+        there is currently a "feature" in chrome where
+        headless does not allow file download: https://bugs.chromium.org/p/chromium/issues/detail?id=696481
+        This method is a hacky work-around until the official chromedriver support for this.
+        Requires chrome version 62.0.3196.0 or above.
+        """
+
+        # add missing support for chrome "send_command"  to selenium webdriver
+        self.driver.command_executor._commands["send_command"] = ("POST", '/session/$sessionId/chromium/send_command')
+
+        params = {'cmd': 'Page.setDownloadBehavior', 'params': {'behavior': 'allow', 'downloadPath': download_dir}}
+        command_result = driver.execute("send_command", params)
+        print("response from browser:")
+        for key in command_result:
+            print("result:" + key + ":" + str(command_result[key]))
 
     def upload_zip_files(self):
 
@@ -79,7 +114,7 @@ class InexPrometheus:
         for filename, mtime in sorted_fn_mtime.items():
 
             filepath = os.path.join(os.getcwd(), filename)
-            os.rename(filepath, os.path.join(os.getcwd(), date.today().strftime("%Y%m%d")+'_'+self.data[counter][1]+'.pdf'))
+            os.rename(filepath, os.path.join(os.getcwd(), self.data[counter][2]+'_'+date.today().strftime("%Y%m%d")+'_'+self.data[counter][1]+'.pdf'))
             counter += 1
 
         with ZipFile(date.today().strftime("%Y%m%d")+'.zip', 'w') as zip:
@@ -109,11 +144,11 @@ class InexPrometheus:
         for node in soup.findAll('td', class_="rich-table-cell"):
             id = node.text.split("Στοιχεία Εντολής")[0].split('21PAY')[0].strip()
             pay = '21PAY'+node.text.split("Στοιχεία Εντολής")[0].split('21PAY')[1].strip()
-            foreas = node.text.split("Φορέας")[1].strip()
+            foreas = node.text.split("Φορέας")[1].replace("/","").strip()
             price = node.text.split("ΦΠΑ")[1].split("Φορέας")[0].strip()
             dt = node.text.split("Αναρτήθηκε")[1].split("Τελευταία")[0].strip()
             self.data.append([id, pay, foreas, price, dt])
-            print(id, pay, foreas, price, dt)
+            # print(id, pay, foreas, price, dt)
         return self.data
 
     def get_pdf(self):
@@ -127,6 +162,7 @@ class InexPrometheus:
             self.driver.find_element_by_id('pageForm:j_id290:'+str(i)+':j_id306').click()
             time.sleep(20)
             self.driver.find_element_by_link_text('Κατεβάστε το αρχείο').click()
+            time.sleep(10)
             self.driver.back()
 
         self.driver.close()

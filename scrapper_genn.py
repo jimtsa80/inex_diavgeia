@@ -18,21 +18,21 @@ from pathlib import Path
 from itertools import chain
 
 
-class InexPap:
+class InexGenn:
 
     def __init__(self):
         self.scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         self.creds = ServiceAccountCredentials.from_json_keyfile_name('secret_key/client_secret.json', self.scope)
         self.client = gspread.authorize(self.creds)
-        self.query_url = "https://prometheus.gpapanikolaou.gr/?fbclid=IwAR0RMcfpdgBbIksqWGfgW_RAP9MWxl3tPYyWou92EOxmohLEqNbivxOEGME#/Web.Platform/LoginForm"
+        self.query_url = "https://promitheftes.gennimatas-thess.gr/#/Web.Platform/LoginForm"
         chrome_options = webdriver.ChromeOptions()
         # chrome_options.add_argument("--headless")
         self.driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
         self.today = date.today().strftime("%d/%m/%Y")
         # self.today = "26/7/2021"
         self.old = "1/1/2022"
-        self.afm = "094356041"
-        self.username = "ACCOUNTING@INEXMEDICAL.GR"
+        self.afm = "094356041inex"
+        self.username = "accounting@inexmedical.gr"
         self.data = []
         self.data_expand = []
         self.comb_data = []
@@ -48,7 +48,7 @@ class InexPap:
 
         for file in fileList:
 
-            if file['title'].startswith("ΠΑΠΑΝΙΚΟΛΑΟΥ"):
+            if file['title'].startswith("ΓΕΝΝΗΜΑΤΑ"):
                 print('Title: %s, ID: %s' % (file['title'], file['id']))
                 fileID = file['id']
 
@@ -59,7 +59,7 @@ class InexPap:
             for filename in filenames:
 
                 if filename.endswith('.xlsx'):
-                    new_filename = os.path.join('ΠΑΠΑΝΙΚΟΛΑΟΥ_'+os.path.splitext(filename)[0]+"_εως_"+date.today().strftime("%d_%m_%y")+".xlsx")
+                    new_filename = os.path.join('ΓΕΝΝΗΜΑΤΑΣ_'+os.path.splitext(filename)[0]+"_εως_"+date.today().strftime("%d_%m_%y")+".xlsx")
                     os.rename(os.path.join(Path.home(), 'Downloads', filename), new_filename)
 
                     gfile = gdrive.CreateFile({'title': new_filename, "parents":  [{"id": "1inCj1Iiv22SpbLk8v1atFF7183HwEpGf"}]})
@@ -69,10 +69,13 @@ class InexPap:
     def get_query(self):
 
         self.driver.get(self.query_url)
+        time.sleep(10)
         WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH,"//button[@class='btn btn-default'][text()='Αποδοχή']"))).click()
         self.driver.find_element_by_id("edtLoginName").send_keys(self.username)
         self.driver.find_element_by_id("edtLoginPassword").send_keys(self.afm)
         self.driver.find_element_by_id("btnLogin").click()
+
+        time.sleep(5)
         WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH,"//span[@class='ctaf-menu-item'][text()='Εντάλματα']"))).click()
 
         WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH,"//input[@data-bind='value: dateFrom']"))).send_keys(self.old)
@@ -137,8 +140,8 @@ class InexPap:
 
     def write_to_gs(self):
 
-        prom_tracker_current = self.client.open('inex_diavgeia').worksheet('current_pap')
-        prom_tracker_history = self.client.open('inex_diavgeia').worksheet('history_pap')
+        prom_tracker_current = self.client.open('inex_diavgeia').worksheet('current_genn')
+        prom_tracker_history = self.client.open('inex_diavgeia').worksheet('history_genn')
 
         today_tracker = DataFrame(self.comb_data, columns=['id', 'axia', 'kratiseis', 'foros', 'pliroteo', 'dt', 'expand'])
         today_tracker['id'] = today_tracker['id'].astype(int)

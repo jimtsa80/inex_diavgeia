@@ -7,13 +7,20 @@ from webdriver_manager.chrome import ChromeDriverManager
 from gspread_dataframe import get_as_dataframe, set_with_dataframe
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import date
+import time
 import gspread
 import json
 import re
 import os
 import pandas as pd
+from scrapper_drama import InexDrama
 from prom_scrapper import InexPrometheus
 from scrapper_pap import InexPap
+from scrapper_genn import InexGenn
+from scrapper_ippo import InexIppo
+from scrapper_serr import InexSerr
+from scrapper_pagni import InexPagni
+from scrapper_ven import InexVen
 
 
 class InexScrapper:
@@ -27,7 +34,7 @@ class InexScrapper:
         # self.query_date = query_date
         self.query_date = query_date
         self.today = date.today().strftime("%Y%m%d")
-        # self.today = "20201208"
+        # self.today = "20210726"
         self.query_url = "https://diavgeia.gov.gr/luminapi/api/search/export?q=q:[%22{}%22]&sort=recent&wt=json".format(quote(self.query))
         # self.query_url = "https://diavgeia.gov.gr/luminapi/api/search/export?q=q:[%22{}%22]&sort=recent&wt=json".format(self.query)
         # chrome_options = webdriver.ChromeOptions()
@@ -73,9 +80,9 @@ class InexScrapper:
         data = self.get_query()
         data['submissionTimestamp'] = pd.to_datetime(data['submissionTimestamp'])
         entries = data[data['submissionTimestamp'].dt.date.astype(str) == self.query_date]
-        print(self.query_date)
-        print(data['submissionTimestamp'].dt.date.astype(str))
-        print(entries)
+        # print(self.query_date)
+        # print(data['submissionTimestamp'].dt.date.astype(str))
+        # print(entries)
         if not entries.empty:
             entries.to_excel('{}_{}.xlsx'.format(self.query, self.today), sheet_name='sheet1', index=False)
         else:
@@ -123,45 +130,85 @@ class InexScrapper:
 
     def clean_folder(self):
         for fl in os.scandir('.'):
-            if fl.path.endswith(".xlsx") or fl.path.endswith(".json"):
+            if fl.path.endswith(".xlsx"):
                 os.remove(fl)
 
 
 if __name__ == '__main__':
-    # # today = "2021-02-15"
-    # # if date.today().month % 2 == 0:
-    # today = date.today().strftime("%Y-%m-%d")
-    # # else:
-    # #     today = date.today().strftime("%Y-%d-%m")
-    # # today = date.today().strftime("%Y-%m-%d")
-    # # today = date.today().strftime("%d/%m/%Y")
-    #
-    # nothing_found = 0
-    # keywords = ["094356041", "inex", "ινεξ"]
-    #
-    # for kw in keywords:
-    #     inexScrapper = InexScrapper(kw, today)
-    #     nothing_found += inexScrapper.counter
-    #
-    # if nothing_found == len(keywords):
-    #     for kw in keywords:
-    #         today = date.today().strftime("%Y-%d-%m")
-    #         inexScrapper = InexScrapper(kw, today)
-    #         nothing_found += inexScrapper.counter
-    #
-    # if nothing_found == len(keywords):
-    #     print("Nothing found today!")
-    #     inexScrapper.clean_folder()
-    # else:
-    #     inexScrapper.write_to_gs()
-    #     inexScrapper.clean_folder()
 
     promScrapper = InexPrometheus()
-    # promScrapper.get_results_for_gs()
-    # promScrapper.write_to_gs()
-    # promScrapper.get_pdf()
+    promScrapper.get_results_for_gs()
+    promScrapper.write_to_gs()
+    promScrapper.get_pdf()
     promScrapper.upload_zip_files()
 
-    # papScrapper = InexPap()
-    # papScrapper.get_query()
-    # papScrapper.write_to_gs()
+    # today = "2022-04-01"
+    # if date.today().month % 2 == 0:
+    # today = date.today().strftime("%Y-%m-%d")
+    today = date.today().strftime("%Y-%d-%m")
+    # else:
+    # today = date.today().strftime("%Y-%d-%m")
+    # today = date.today().strftime("%Y-%m-%d")
+    # today = date.today().strftime("%d/%m/%Y")
+
+    nothing_found = 0
+    keywords = ["094356041", "inex", "ινεξ"]
+
+    for kw in keywords:
+        inexScrapper = InexScrapper(kw, today)
+        nothing_found += inexScrapper.counter
+
+    if nothing_found == len(keywords):
+        for kw in keywords:
+            today = date.today().strftime("%Y-%d-%m")
+            inexScrapper = InexScrapper(kw, today)
+            nothing_found += inexScrapper.counter
+
+    if nothing_found == len(keywords):
+        print("Nothing found today!")
+        inexScrapper.clean_folder()
+
+    else:
+        inexScrapper.write_to_gs()
+        inexScrapper.clean_folder()
+
+    papScrapper = InexPap()
+    papScrapper.get_query()
+    papScrapper.write_to_gs()
+    papScrapper.upload_xlsx_files()
+    papScrapper.driver.close()
+
+    dramaScrapper = InexDrama()
+    dramaScrapper.get_query()
+    dramaScrapper.upload_xlsx_files()
+    dramaScrapper.driver.close()
+
+    IppoScrapper = InexIppo()
+    IppoScrapper.get_query()
+    IppoScrapper.write_to_gs()
+    IppoScrapper.upload_xlsx_files()
+    IppoScrapper.driver.close()
+
+    PagniScrapper = InexPagni()
+    PagniScrapper.get_query()
+    PagniScrapper.write_to_gs()
+    PagniScrapper.driver.close()
+
+    GennScrapper = InexGenn()
+    GennScrapper.get_query()
+    GennScrapper.write_to_gs()
+    GennScrapper.upload_xlsx_files()
+    GennScrapper.driver.close()
+
+    SerrScrapper = InexSerr()
+    SerrScrapper.get_query()
+    SerrScrapper.write_to_gs()
+    SerrScrapper.upload_xlsx_files()
+    SerrScrapper.driver.close()
+
+    # VenScrapper = InexVen()
+    # VenScrapper.get_query()
+    # VenScrapper.get_text()
+    # # VenScrapper.write_to_gs()
+    # # VenScrapper.upload_xlsx_files()
+    # VenScrapper.driver.close()
